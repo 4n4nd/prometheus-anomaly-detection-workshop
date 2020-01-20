@@ -1,0 +1,115 @@
+---
+- name: Deploy the ODH operator to Openshift
+  hosts: 127.0.0.1
+  connection: local
+  tasks:
+    - name: Load the common vars file
+      include_vars:
+        file: "vars/common-vars.yaml"
+
+    - name: Ensure that the required variables are set
+      fail:
+        msg: "Required variable '{{ item }}' was not found"
+      when: "{{ item }} is undefined"
+      with_items:
+        - kubeconfig
+        - odh_namespace
+        - odh_image
+        - odh_image_tag
+        - user_count
+
+    - name: Create jupyterhub namespace
+      k8s:
+        name: "{{ item }}"
+        api_version: v1
+        kind: Namespace
+        state: present
+        verify_ssl: no
+      with_items: "{{ odh_namespace }}"
+
+    # install odh operator and set up jupyterhub
+    - name: Determine the list of yaml files to apply
+      find:
+        paths: cluster-operator
+      register: cluster_operator_templates
+
+    - name: Verify namespace exists
+      k8s:
+        name: "{{ item }}"
+        api_version: v1
+        kind: Namespace
+        state: present
+        verify_ssl: no
+      loop: "{{ odh_namespace }}"
+
+    - name: Deploy the ODH objects to Openshift
+      k8s:
+        kubeconfig: "{{ kubeconfig }}"
+        state: present
+        namespace: "{{ item[0] }}"
+        definition: "{{ lookup('template', item[1].path) }}"
+        verify_ssl: no
+      with_nested:
+        - "{{ odh_namespace }}"
+        - "{{ cluster_operator_templates.files }}"
+
+
+    # create multiple users (workshop users) and check if each user has access to jupyterhub
+    # - name: Generate list of User IDs
+    #   set_fact:
+    #     users: "{{ lookup('sequence', 'start=1 end={{ user_count|int }}', wantlist=true) | map('int') | list }}"
+    #
+    # - debug:
+    #     msg: "user{{ item }}"
+    #   loop: "{{ users }}"
+    #
+    # # create an empty namespace for each user and each user has access to their own ns
+    # - set_fact:
+    #     user_name: "user3"
+    #
+    # - set_fact:
+    #     project_name: "opendatahub-{{ user_name }}"
+    #
+    # - debug:
+    #     msg: "Deploying Open Data Hub to project {{ project_name }} and adding {{ user_name }}"
+    #
+    # - name: "Make sure project {{ project_name }} is not there"
+    #   k8s:
+    #     state: absent
+    #     name: "{{ project_name }}"
+    #     kind: Project
+    #     api_version: project.openshift.io/v1
+    #
+    # - name: Ensure project is done terminating if it was being terminated
+    #   k8s_facts:
+    #     api_version: project.openshift.io/v1
+    #     kind: Project
+    #     name: "{{ project_name }}"
+    #   register: result
+    #   failed_when: result.resources | length > 0
+    #   retries: 60
+    #   until: result.resources | length == 0
+    #
+    # - name: "Creating project {{ project_name }}"
+    #   k8s:
+    #     state: present
+    #     name: "{{ project_name }}"
+    #     kind: ProjectRequest
+    #     api_version: project.openshift.io/v1
+    #
+    # - name: Make '{{ user_name }}' project admin
+    #   k8s:
+    #     state: present
+    #     definition:
+    #       kind: RoleBinding
+    #       apiVersion: rbac.authorization.k8s.io/v1
+    #       metadata:
+    #         name: "admin-{{ user_name }}"
+    #         namespace: "{{ project_name }}"
+    #       subjects:
+    #         - kind: User
+    #           name: "{{ user_name }}"
+    #       roleRef:
+    #         kind: ClusterRole
+    #         name: admin
+    #         apiGroup: rbac.authorization.k8s.io

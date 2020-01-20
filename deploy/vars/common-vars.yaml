@@ -1,0 +1,13 @@
+---
+kubeconfig: "/home/anand/.kube/config"
+odh_namespace:
+  - odh-jupyterhub
+odh_image: "quay.io/opendatahub/opendatahub-operator"
+odh_image_tag: "v0.5.0"
+user_count: 5
+jupyterhub_admins:
+  - opentic-mgr
+
+# Set this to true if you want the image streams and build configs
+#   for our custom notebook images to be created in dev
+deploy_custom_images: true
