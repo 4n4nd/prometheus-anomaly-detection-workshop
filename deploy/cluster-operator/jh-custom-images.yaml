@@ -10,7 +10,7 @@ data:
     - name: globals
       env:
         S3_ENDPOINT_URL: https://s3.upshift.redhat.com
-        JUPYTER_PRELOAD_REPOS: "https://github.com/anishasthana/odh-hybrid-data-workshop.git"
+        JUPYTER_PRELOAD_REPOS: "https://github.com/hemajv/prometheus-anomaly-detection-workshop"
       resources:
         mem_limit: 2Gi
         cpu_limit: 1
